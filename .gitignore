@@ -171,3 +171,5 @@ sphinx_*/
 
 # Local makefile
 Makefile.local
+hw1_parallelism/meta.img
+f2fs_meta.img

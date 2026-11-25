@@ -2,7 +2,6 @@
 
 #ifndef _NVMEVIRT_ZNS_FTL_H
 #define _NVMEVIRT_ZNS_FTL_H
-
 #include <linux/types.h>
 #include "nvmev.h"
 #include "nvme_zns.h"
@@ -42,6 +41,10 @@ struct zns_ftl {
 	struct buffer *zone_write_buffer;
 	struct buffer *zrwa_buffer;
 	void *storage_base_addr;
+	/* Expected completion of NAND work assigned to each channel/zone. */
+	uint64_t *ch_busy_until;
+	uint64_t *zone_busy_until;
+	uint64_t io_count;
 };
 
 /* zns internal functions */

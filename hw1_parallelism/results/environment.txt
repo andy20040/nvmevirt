@@ -1,0 +1,2 @@
+Linux memory 5.15.0-204-generic #214-Ubuntu SMP Fri Nov 6 00:52:52 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+BOOT_IMAGE=/vmlinuz-5.15.0-204-generic root=/dev/mapper/ubuntu--vg-ubuntu--lv ro memmap=3G$4G

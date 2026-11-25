@@ -3,7 +3,38 @@
 #include "nvmev.h"
 #include "ssd.h"
 #include "zns_ftl.h"
+/* All ZNS I/O commands are processed by the single NVMeVirt dispatcher. */
+static void record_zns_nand(struct zns_ftl *zns_ftl, uint32_t zid,
+			    const struct ppa *ppa, uint64_t nsecs_completed)
+{
+	uint32_t ch = ppa->g.ch;
 
+	if (!zns_ftl->ch_busy_until || zid >= zns_ftl->zp.nr_zones ||
+	    ch >= zns_ftl->ssd->sp.nchs)
+		return;
+
+	zns_ftl->ch_busy_until[ch] = max(zns_ftl->ch_busy_until[ch], nsecs_completed);
+	zns_ftl->zone_busy_until[zid] = max(zns_ftl->zone_busy_until[zid], nsecs_completed);
+}
+
+static void log_zns_parallelism(struct zns_ftl *zns_ftl, uint64_t now, const char *op)
+{
+	uint32_t active_channels = 0, active_zones = 0, i;
+
+	if (!zns_ftl->ch_busy_until)
+		return;
+
+	zns_ftl->io_count++;
+	for (i = 0; i < zns_ftl->ssd->sp.nchs; i++)
+		active_channels += zns_ftl->ch_busy_until[i] > now;
+	for (i = 0; i < zns_ftl->zp.nr_zones; i++)
+		active_zones += zns_ftl->zone_busy_until[i] > now;
+
+	/* One record per successful read/write keeps the comparison reproducible. */
+	pr_info("[ZNS Parallelism v2] Pending NAND Channels: %u / %d, Pending NAND Zones: %u / %u (Total IOs: %llu, Op: %s)\n",
+		active_channels, zns_ftl->ssd->sp.nchs, active_zones,
+		zns_ftl->zp.nr_zones, zns_ftl->io_count, op);
+}
 static inline uint32_t __nr_lbas_from_rw_cmd(struct nvme_rw_command *cmd)
 {
 	return cmd->length + 1;
@@ -71,6 +102,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 	uint64_t slba = cmd->slba;
 	uint64_t nr_lba = __nr_lbas_from_rw_cmd(cmd);
 	uint64_t slpn, elpn, lpn, zone_elpn;
+
 	// get zone from start_lbai
 	uint32_t zid = lba_to_zone(zns_ftl, slba);
 	enum zone_state state = zone_descs[zid].state;
@@ -198,6 +230,7 @@ static bool __zns_write(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 				zns_ftl->zp.zone_size % (spp->pgs_per_oneshotpg * spp->pgsz);
 			uint64_t nsecs_completed = ssd_advance_nand(zns_ftl->ssd, &swr);
 
+			record_zns_nand(zns_ftl, zid, &ppa, nsecs_completed);
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 			NVMEV_ZNS_DEBUG("%s Flush slba 0x%llx nr_lba 0x%llx zone_id %d state %d\n",
 					__func__, slba, nr_lba, zid, state);
@@ -357,6 +390,7 @@ static bool __zns_write_zrwa(struct zns_ftl *zns_ftl, struct nvmev_request *req,
 			swr.ppa = &ppa;
 
 			nsecs_completed = ssd_advance_nand(zns_ftl->ssd, &swr);
+			record_zns_nand(zns_ftl, zid, &ppa, nsecs_completed);
 			nsecs_latest = max(nsecs_completed, nsecs_latest);
 
 			schedule_internal_operation(req->sq_id, nsecs_completed,
@@ -386,16 +420,19 @@ bool zns_write(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resu
 	struct zone_descriptor *zone_descs = zns_ftl->zone_descs;
 	struct nvme_rw_command *cmd = &(req->cmd->rw);
 	uint64_t slpn = lba_to_lpn(zns_ftl, cmd->slba);
-
+	bool handled;
 	// get zone from start_lba
 	uint32_t zid = lpn_to_zone(zns_ftl, slpn);
 
 	NVMEV_DEBUG("%s slba 0x%llx zone_id %d \n", __func__, cmd->slba, zid);
 
 	if (zone_descs[zid].zrwav == 0)
-		return __zns_write(zns_ftl, req, ret);
+		handled = __zns_write(zns_ftl, req, ret);
 	else
-		return __zns_write_zrwa(zns_ftl, req, ret);
+		handled = __zns_write_zrwa(zns_ftl, req, ret);
+	if (handled && ret->status == NVME_SC_SUCCESS)
+		log_zns_parallelism(zns_ftl, req->nsecs_start, "write");
+	return handled;
 }
 
 bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_result *ret)
@@ -432,6 +469,11 @@ bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resul
 		// return boundary error
 		status = NVME_SC_ZNS_ERR_BOUNDARY;
 	}
+	if (status != NVME_SC_SUCCESS) {
+		ret->status = status;
+		ret->nsecs_target = nsecs_start;
+		return true;
+	}
 
 	// get delay from nand model
 	nsecs_latest = nsecs_start;
@@ -452,6 +494,7 @@ bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resul
 		swr.xfer_size = pgs * spp->pgsz;
 		swr.ppa = &ppa;
 		nsecs_completed = ssd_advance_nand(zns_ftl->ssd, &swr);
+		record_zns_nand(zns_ftl, zid, &ppa, nsecs_completed);
 		nsecs_latest = (nsecs_completed > nsecs_latest) ? nsecs_completed : nsecs_latest;
 	}
 
@@ -462,5 +505,6 @@ bool zns_read(struct nvmev_ns *ns, struct nvmev_request *req, struct nvmev_resul
 
 	ret->status = status;
 	ret->nsecs_target = nsecs_latest;
+	log_zns_parallelism(zns_ftl, req->nsecs_start, "read");
 	return true;
 }

@@ -2,6 +2,7 @@
 
 #include <linux/ktime.h>
 #include <linux/sched/clock.h>
+#include <linux/slab.h>
 
 #include "nvmev.h"
 #include "ssd.h"
@@ -97,7 +98,16 @@ static void zns_init_params(struct znsparams *zpp, struct ssdparams *spp, uint64
 		.lbas_per_zrwa = ZRWA_SIZE / spp->secsz,
 		.lbas_per_zrwafg = ZRWAFG_SIZE / spp->secsz,
 	};
+	pr_info("NVMeVirt: capacity = %llu bytes (%llu MiB)\n",
+	       (unsigned long long)capacity,
+	       (unsigned long long)(capacity / (1024 * 1024)));
 
+	pr_info("NVMeVirt: zone_size = %llu bytes (%llu MiB)\n",
+	       (unsigned long long)zpp->zone_size,
+	       (unsigned long long)(zpp->zone_size / (1024 * 1024)));
+
+	pr_info("NVMeVirt: remainder = %llu bytes\n",
+	       (unsigned long long)(capacity % zpp->zone_size));
 	NVMEV_ASSERT((capacity % zpp->zone_size) == 0);
 	/* It should be 4KB aligned, according to lpn size */
 	NVMEV_ASSERT((zpp->zone_size % spp->pgsz) == 0);
@@ -115,6 +125,17 @@ static void zns_init_ftl(struct zns_ftl *zns_ftl, struct znsparams *zpp, struct 
 		.ssd = ssd,
 		.storage_base_addr = mapped_addr,
 	};
+	zns_ftl->ch_busy_until = kvcalloc(ssd->sp.nchs,
+					   sizeof(*zns_ftl->ch_busy_until), GFP_KERNEL);
+	zns_ftl->zone_busy_until = kvcalloc(zpp->nr_zones,
+					     sizeof(*zns_ftl->zone_busy_until), GFP_KERNEL);
+	if (!zns_ftl->ch_busy_until || !zns_ftl->zone_busy_until) {
+		kvfree(zns_ftl->ch_busy_until);
+		kvfree(zns_ftl->zone_busy_until);
+		zns_ftl->ch_busy_until = NULL;
+		zns_ftl->zone_busy_until = NULL;
+		pr_warn("[ZNS Parallelism v2] tracking allocation failed; statistics disabled\n");
+	}
 
 	__init_descriptor(zns_ftl);
 	__init_resource(zns_ftl);
@@ -125,11 +146,14 @@ void zns_init_namespace(struct nvmev_ns *ns, uint32_t id, uint64_t size, void *m
 {
 	struct ssd *ssd;
 	struct zns_ftl *zns_ftl;
-
 	struct ssdparams spp;
 	struct znsparams zpp;
 
 	const uint32_t nr_parts = 1; /* Not support multi partitions for zns*/
+
+	pr_info("NVMeVirt: incoming size = %llu bytes (%llu MiB)\n",
+		(unsigned long long)size,
+		(unsigned long long)(size / (1024 * 1024)));
 	NVMEV_ASSERT(nr_parts == 1);
 
 	ssd = kmalloc(sizeof(struct ssd), GFP_KERNEL);
@@ -161,6 +185,8 @@ void zns_remove_namespace(struct nvmev_ns *ns)
 	ssd_remove(zns_ftl->ssd);
 
 	__remove_descriptor(zns_ftl);
+	kvfree(zns_ftl->ch_busy_until);
+	kvfree(zns_ftl->zone_busy_until);
 	kfree(zns_ftl->ssd);
 	kfree(zns_ftl);
 

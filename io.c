@@ -310,7 +310,6 @@ static struct nvmev_io_worker *__allocate_work_queue_entry(int sqid, unsigned in
 	worker->free_seq = w->next;
 	BUG_ON(worker->free_seq >= NR_MAX_PARALLEL_IO);
 	*entry = e;
-
 	return worker;
 }
 

@@ -1,0 +1,17 @@
+nr_zones: 16
+SLBA: 0          WP: 0          Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x20000    WP: 0x20000    Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x40000    WP: 0x40000    Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x60000    WP: 0x60000    Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x80000    WP: 0x80000    Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0xa0000    WP: 0xa0000    Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0xc0000    WP: 0xc0000    Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0xe0000    WP: 0xe0000    Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x100000   WP: 0x100000   Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x120000   WP: 0x120000   Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x140000   WP: 0x140000   Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x160000   WP: 0x160000   Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x180000   WP: 0x180000   Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x1a0000   WP: 0x1a0000   Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x1c0000   WP: 0x1c0000   Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   
+SLBA: 0x1e0000   WP: 0x1e0000   Cap: 0x20000    State: 0x10 Type: 0x2  Attrs: 0    AttrsInfo: 0   

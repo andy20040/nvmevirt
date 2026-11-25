@@ -526,6 +526,8 @@ static bool __load_configs(struct nvmev_config *config)
 static void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 {
 	unsigned long long remaining_capacity = nvmev_vdev->config.storage_size;
+	pr_err("NVMeVirt DEBUG: storage_size=%llu MiB\n",
+       nvmev_vdev->config.storage_size / (1024 * 1024));
 	void *ns_addr = nvmev_vdev->storage_mapped;
 	const int nr_ns = NR_NAMESPACES; // XXX: allow for dynamic nr_ns
 	const unsigned int disp_no = nvmev_vdev->config.cpu_nr_dispatcher;
@@ -535,19 +537,24 @@ static void NVMEV_NAMESPACE_INIT(struct nvmev_dev *nvmev_vdev)
 	struct nvmev_ns *ns = kmalloc(sizeof(struct nvmev_ns) * nr_ns, GFP_KERNEL);
 
 	for (i = 0; i < nr_ns; i++) {
+		 pr_err("NVMeVirt DEBUG: ns[%d] before allocation: remaining=%llu MiB, configured=%llu MiB\n",
+           i,
+           remaining_capacity / (1024 * 1024),
+           (unsigned long long)(NS_CAPACITY(i) / (1024 * 1024)));
+
 		if (NS_CAPACITY(i) == 0)
 			size = remaining_capacity;
 		else
 			size = min(NS_CAPACITY(i), remaining_capacity);
 
 		if (NS_SSD_TYPE(i) == SSD_TYPE_NVM)
-			simple_init_namespace(&ns[i], i, size, ns_addr, disp_no);
+			;//simple_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_CONV)
 			conv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_ZNS)
 			zns_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else if (NS_SSD_TYPE(i) == SSD_TYPE_KV)
-			kv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
+			;//kv_init_namespace(&ns[i], i, size, ns_addr, disp_no);
 		else
 			BUG_ON(1);
 

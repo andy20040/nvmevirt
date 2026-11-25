@@ -6,7 +6,7 @@
 #include <linux/pci.h>
 #include <linux/msi.h>
 #include <asm/apic.h>
-
+#include <linux/atomic.h>
 #include "nvme.h"
 
 #define CONFIG_NVMEV_IO_WORKER_BY_SQ
@@ -207,7 +207,8 @@ struct nvmev_io_worker {
 	unsigned int io_seq_end; /* io req tail index */
 
 	unsigned long long latest_nsecs;
-
+	atomic64_t io_count;
+	int last_cpu;
 	unsigned int id;
 	struct task_struct *task_struct;
 	char thread_name[32];

@@ -61,12 +61,12 @@ enum {
 #define LBA_SIZE (1 << LBA_BITS)
 
 #elif (BASE_SSD == SAMSUNG_970PRO)
-#define NR_NAMESPACES 1
+#define NR_NAMESPACES 2
 
 #define NS_SSD_TYPE_0 SSD_TYPE_CONV
-#define NS_CAPACITY_0 (0)
-#define NS_SSD_TYPE_1 NS_SSD_TYPE_0
-#define NS_CAPACITY_1 (0)
+#define NS_CAPACITY_0 GB(1)
+#define NS_SSD_TYPE_1 SSD_TYPE_ZNS
+#define NS_CAPACITY_1 GB(1)
 #define MDTS (6)
 #define CELL_MODE (CELL_MODE_MLC)
 
@@ -92,7 +92,7 @@ static_assert((ONESHOT_PAGE_SIZE % FLASH_PAGE_SIZE) == 0);
 #define NAND_READ_LATENCY_LSB (36013 - 6000)
 #define NAND_READ_LATENCY_MSB (36013 + 6000)
 #define NAND_READ_LATENCY_CSB (0) //not used
-#define NAND_PROG_LATENCY (185000)
+#define NAND_PROG_LATENCY (50000000) /* Experiment: original value was 185000 ns. */
 #define NAND_ERASE_LATENCY (0)
 
 #define FW_4KB_READ_LATENCY (21500)
@@ -103,11 +103,17 @@ static_assert((ONESHOT_PAGE_SIZE % FLASH_PAGE_SIZE) == 0);
 #define OP_AREA_PERCENT (0.07)
 
 #define GLOBAL_WB_SIZE (NAND_CHANNELS * LUNS_PER_NAND_CH * ONESHOT_PAGE_SIZE * 2)
-#define WRITE_EARLY_COMPLETION 1
+#define WRITE_EARLY_COMPLETION 0 /* Wait for modeled NAND programming. */
 
 #define LBA_BITS (9)
 #define LBA_SIZE (1 << LBA_BITS)
-
+#define ZONE_SIZE MB(256)  //-------------------------------------------------------------------------------------zone size here ------------------
+#define DIES_PER_ZONE 1
+#define MAX_ZRWA_ZONES 0
+#define ZONE_WB_SIZE 0
+#define ZRWA_SIZE 0
+#define ZRWAFG_SIZE 0
+#define ZRWA_BUFFER_SIZE 0
 #elif (BASE_SSD == ZNS_PROTOTYPE)
 #define NR_NAMESPACES 1
 

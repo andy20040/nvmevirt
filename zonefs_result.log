@@ -1,0 +1,7 @@
+Filesystem: ZoneFS
+Workers: 4
+Block size: 64 KiB
+Data per worker: 64 MiB
+Total data: 256 MiB
+Elapsed: 0.123542 s
+Throughput: 2072.17 MiB/s
